@@ -56,6 +56,17 @@ mysqli_close($conn);
 <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 <script type="text/javascript" src="twoj_js.js"></script> 
+<style>
+/* Aktywny utwór */
+#playlist li.active {
+    font-weight: bold;
+    color: #007bff;
+}
+#playlist li {
+    cursor: pointer;
+    padding: 5px 0;
+}
+</style>
 </head>
 <body onload="myLoadHeader()">
 <div id="myHeader"></div>
@@ -66,32 +77,76 @@ mysqli_close($conn);
             <?php if (mysqli_num_rows($resultFilms) === 0): ?>
                 <p>Playlista jest pusta.</p>
             <?php else: ?>
-                <ul class="list-group mb-3">
-                    <?php while ($film = mysqli_fetch_assoc($resultFilms)): ?>
-                        <?php
-                        // Ścieżka do pliku: katalog użytkownika
-                        $filepath = 'films/' . $film['username'] . '/' . $film['filename'];
-                        if (!file_exists($filepath)) {
-                            $fileExists = false;
-                        } else {
-                            $fileExists = true;
-                        }
-                        ?>
-                        <li class="list-group-item">
-                            <strong><?php echo htmlspecialchars($film['title']); ?></strong><br>
-                            <?php if ($fileExists): ?>
-                                <video controls style="width:100%; max-width:400px; max-height:400px;">
-                                    <source src="<?php echo $filepath; ?>" type="video/mp4">
-                                    Twoja przeglądarka nie obsługuje odtwarzacza audio.
-                                </video>
-                            <?php else: ?>
-                                <span class="text-danger">Plik audio nie istnieje.</span>
-                            <?php endif; ?>
-                        </li>
-                    <?php endwhile; ?>
-                </ul>
+                <div class="video-player">
+                    <!-- Wyświetlanie nazwy aktualnego utworu -->
+                    <div id="currentTrackName" class="mb-2"><strong>Teraz odtwarzany:</strong> </div>
+                    <video id="video" controls style="width: 400px; height: auto; max-height: 400px; object-fit: contain;">
+                        Twoja przeglądarka nie obsługuje odtwarzacza video.
+                    </video>
+                    <h2>Pozycje zawarte w playliście</h2>
+                    <ul id="playlist" class="list-group mt-3">
+                        <?php while ($film = mysqli_fetch_assoc($resultFilms)): ?>
+                            <?php
+                            $filepath = 'films/' . $film['username'] . '/' . $film['filename'];
+                            $fileExists = file_exists($filepath);
+                            ?>
+                            <li class="list-group-item" <?php if($fileExists) echo 'data-src="'.$filepath.'"'; ?> data-title="<?php echo htmlspecialchars($film['title']); ?>">
+                                <strong><?php echo htmlspecialchars($film['title']); ?></strong>
+                                <br><small><?php echo htmlspecialchars($film['director']); ?></small>
+                                <?php if (!$fileExists): ?>
+                                    <span class="text-danger"> - Plik video nie istnieje</span>
+                                <?php endif; ?>
+                            </li>
+                        <?php endwhile; ?>
+                    </ul>
+                </div>
+                <script>
+                var video = document.getElementById('video'); // Element video
+                var playlist = document.getElementById('playlist'); // Lista utworów
+                var tracks = playlist.getElementsByTagName('li'); // Wszystkie elementy li
+                var currentTrack = 0; // Indeks aktualnego utworu
+                var currentTrackName = document.getElementById('currentTrackName'); // Element do wyświetlania nazwy utworu
+                function playTrack(trackIndex) {
+                    if (!tracks[trackIndex]) return;
+
+                    if (tracks[currentTrack]) {
+                        tracks[currentTrack].classList.remove('active'); // Usuń klasę 'active' z poprzedniego
+                    }
+                    currentTrack = trackIndex;
+                    tracks[currentTrack].classList.add('active'); // Dodaj klasę 'active' do aktualnego
+                    var trackSrc = tracks[currentTrack].getAttribute('data-src');
+                    var trackTitle = tracks[currentTrack].getAttribute('data-title'); // Pobranie tytułu utworu
+                    if(trackSrc){
+                        video.src = trackSrc;
+                        video.play();
+                        // Aktualizacja wyświetlanej nazwy utworu
+                        currentTrackName.innerHTML = "<strong>Teraz odtwarzany:</strong> " + trackTitle;
+                    }
+                }
+                // Automatyczne przejście do następnego utworu
+                video.onended = function() {
+                    if (currentTrack + 1 < tracks.length) {
+                        playTrack(currentTrack + 1);
+                    } else {
+                        playTrack(0);
+                    }
+                };
+                // Kliknięcie w utwór z listy
+                playlist.addEventListener('click', function(e) {
+                    var target = e.target;
+                    while(target && target.nodeName !== 'LI') {
+                        target = target.parentNode;
+                    }
+                    if(target && target.getAttribute('data-src')) {
+                        var clickedIndex = Array.prototype.indexOf.call(tracks, target);
+                        playTrack(clickedIndex);
+                    }
+                });
+                // Start odtwarzania pierwszego utworu
+                playTrack(0);
+                </script>
             <?php endif; ?>
-            <a href="index.php" class="btn btn-secondary">Powrót</a>
+            <a href="index.php" class="btn btn-secondary mt-3">Powrót</a>
         </div>
     </section>
 </main>
